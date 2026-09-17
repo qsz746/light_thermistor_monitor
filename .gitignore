@@ -1,0 +1,67 @@
+# ============================================================
+# STM32CubeMX + Keil MDK-ARM
+# ============================================================
+
+# Keil build output folders
+Objects/
+Listings/
+Debug/
+Release/
+
+# Build artifacts
+*.o
+*.obj
+*.axf
+*.elf
+*.hex
+*.bin
+*.map
+*.lst
+*.dep
+*.d
+*.lnp
+*.crf
+*.lib
+*.a
+
+# Keil temporary / generated files
+*.bak
+*.tmp
+*.log
+*.htm
+*.html
+
+# Keil user-specific/session files
+*.uvguix.*
+*.uvguix
+*.uvgui.*
+*.uvopt.user
+
+# Debug / trace files
+*.scvd
+*.dbgconf
+*.jlink
+*.jlinklog
+
+# CMSIS / RTE temporary build files
+RTE/_Build/
+RTE/_Debug/
+
+# STM32CubeMX backup files
+*.ioc.bak
+.mxproject.bak
+
+# IDE/editor files
+.vscode/
+.idea/
+*.code-workspace
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary / swap files
+*~
+*.swp
+*.swo
