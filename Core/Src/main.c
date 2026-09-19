@@ -115,10 +115,16 @@ int main(void)
   MX_ADC1_Init();
   MX_USART1_UART_Init();
   MX_TIM2_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
   HAL_ADCEx_Calibration_Start(&hadc1);
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
-  
+ 
+
+ 
+
+	HAL_ADC_Start_DMA(&hadc1, (uint32_t *)adc_buf, 2);
+	HAL_TIM_Base_Start(&htim3);
   
   /* USER CODE END 2 */
 
@@ -127,10 +133,25 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
+	    static uint32_t last_print = 0;
 
+    if (HAL_GetTick() - last_print >= 500)
+    {
+        last_print = HAL_GetTick();
+
+        float light_voltage;
+        float temp_voltage;
+        float temperature;
+
+        light_voltage = adc_buf[0] / 4095.0f * 3.3f;
+        temp_voltage  = adc_buf[1] / 4095.0f * 3.3f;
+        temperature   = Thermistor_VoltageToTemp(temp_voltage);
+
+        printf("Light: %.3f V, Temp: %.2f C\r\n",
+               light_voltage, temperature);
+    }
     /* USER CODE BEGIN 3 */
-	HAL_ADC_Start_DMA(&hadc1, (uint32_t *)adc_buf, 2);
-	HAL_Delay(1000);
+ 
   }
   /* USER CODE END 3 */
 }
@@ -192,19 +213,25 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 {
     if (hadc->Instance == ADC1)
     {
-        float light_voltage;
-        float temp_voltage;
-		float temperature;
-		uint32_t ccr;
-       
-        light_voltage = adc_buf[0] / 4095.0f * 3.3f;
-        temp_voltage  = adc_buf[1] / 4095.0f * 3.3f;
-		temperature = Thermistor_VoltageToTemp(temp_voltage);
-        ccr = adc_buf[0] * 999 / 4095;
+        uint16_t light;
+        uint32_t ccr;
+
+        light = adc_buf[0];
+
+        if (light <= 1650)
+        {
+            ccr = 0;
+        }
+        else if (light >= 3950)
+        {
+            ccr = 999;
+        }
+        else
+        {
+            ccr = (light - 1650) * 999 / (3950 - 1650);
+        }
 
         __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_3, ccr);
-        printf("Light: %.3f V, Temp: %.2f C\r\n",
-               light_voltage, temperature);
     }
 }
 /* USER CODE END 4 */
