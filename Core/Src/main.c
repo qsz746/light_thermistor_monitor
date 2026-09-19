@@ -52,13 +52,14 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-uint16_t adc_buf[2];   // ADC raw val
+volatile uint16_t adc_buf[2];   // ADC raw val
 
 uint16_t light_samples[LIGHT_FILTER_SIZE] = {0};
 uint32_t light_sum = 0;
 uint8_t light_index = 0;
 uint8_t light_sample_count = 0;
  
+volatile uint16_t filtered_light = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -141,7 +142,9 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-	    static uint32_t last_print = 0;
+
+    /* USER CODE BEGIN 3 */
+ 	static uint32_t last_print = 0;
 
     if (HAL_GetTick() - last_print >= 500)
     {
@@ -151,15 +154,13 @@ int main(void)
         float temp_voltage;
         float temperature;
 
-        light_voltage = adc_buf[0] / 4095.0f * 3.3f;
+        light_voltage = filtered_light / 4095.0f * 3.3f;
         temp_voltage  = adc_buf[1] / 4095.0f * 3.3f;
         temperature   = Thermistor_VoltageToTemp(temp_voltage);
 
         printf("Light: %.3f V, Temp: %.2f C\r\n",
                light_voltage, temperature);
     }
-    /* USER CODE BEGIN 3 */
- 
   }
   /* USER CODE END 3 */
 }
@@ -249,7 +250,9 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
         }
 
         // moving average
-        light = light_sum / light_sample_count;
+        filtered_light = light_sum / light_sample_count;
+
+		light = filtered_light;
 
         if (light <= LIGHT_ADC_MIN)
         {
