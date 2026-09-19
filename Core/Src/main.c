@@ -38,7 +38,10 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define LIGHT_ADC_MIN 1650
+#define LIGHT_ADC_MAX 3950
+#define PWM_MAX       999
+#define LIGHT_FILTER_SIZE  8
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -50,6 +53,11 @@
 
 /* USER CODE BEGIN PV */
 uint16_t adc_buf[2];   // ADC raw val
+
+uint16_t light_samples[LIGHT_FILTER_SIZE] = {0};
+uint32_t light_sum = 0;
+uint8_t light_index = 0;
+uint8_t light_sample_count = 0;
  
 /* USER CODE END PV */
 
@@ -215,20 +223,45 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
     {
         uint16_t light;
         uint32_t ccr;
+		// 8-sample moving average filter
+		// light_index points to the oldest sample / next position to overwrite
+        // remove oldest sample from sum
+        light_sum -= light_samples[light_index];
 
-        light = adc_buf[0];
+        // store newest sample
+        light_samples[light_index] = adc_buf[0];
 
-        if (light <= 1650)
+        // add newest sample to sum
+        light_sum += light_samples[light_index];
+
+        // move index forward
+        light_index++;
+
+        if (light_index >= LIGHT_FILTER_SIZE)
+        {
+            light_index = 0;
+        }
+
+        // during startup, we may not have 8 samples yet
+        if (light_sample_count < LIGHT_FILTER_SIZE)
+        {
+            light_sample_count++;
+        }
+
+        // moving average
+        light = light_sum / light_sample_count;
+
+        if (light <= LIGHT_ADC_MIN)
         {
             ccr = 0;
         }
-        else if (light >= 3950)
+        else if (light >= LIGHT_ADC_MAX)
         {
-            ccr = 999;
+            ccr = PWM_MAX;
         }
         else
         {
-            ccr = (light - 1650) * 999 / (3950 - 1650);
+            ccr = (light - LIGHT_ADC_MIN) * PWM_MAX / (LIGHT_ADC_MAX - LIGHT_ADC_MIN);
         }
 
         __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_3, ccr);
