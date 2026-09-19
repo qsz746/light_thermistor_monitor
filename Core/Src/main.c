@@ -42,6 +42,7 @@
 #define LIGHT_ADC_MAX 3950
 #define PWM_MAX       999
 #define LIGHT_FILTER_SIZE  8
+#define TEMP_FILTER_SIZE  8
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -58,8 +59,13 @@ uint16_t light_samples[LIGHT_FILTER_SIZE] = {0};
 uint32_t light_sum = 0;
 uint8_t light_index = 0;
 uint8_t light_sample_count = 0;
- 
 volatile uint16_t filtered_light = 0;
+
+uint16_t temp_samples[TEMP_FILTER_SIZE] = {0};
+uint32_t temp_sum = 0;
+uint8_t temp_index = 0;
+uint8_t temp_sample_count = 0;
+volatile uint16_t filtered_temp = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -155,7 +161,7 @@ int main(void)
         float temperature;
 
         light_voltage = filtered_light / 4095.0f * 3.3f;
-        temp_voltage  = adc_buf[1] / 4095.0f * 3.3f;
+        temp_voltage  = filtered_temp / 4095.0f * 3.3f;
         temperature   = Thermistor_VoltageToTemp(temp_voltage);
 
         printf("Light: %.3f V, Temp: %.2f C\r\n",
@@ -228,32 +234,24 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 		// light_index points to the oldest sample / next position to overwrite
         // remove oldest sample from sum
         light_sum -= light_samples[light_index];
-
         // store newest sample
         light_samples[light_index] = adc_buf[0];
-
         // add newest sample to sum
         light_sum += light_samples[light_index];
-
         // move index forward
         light_index++;
-
         if (light_index >= LIGHT_FILTER_SIZE)
         {
             light_index = 0;
         }
-
         // during startup, we may not have 8 samples yet
         if (light_sample_count < LIGHT_FILTER_SIZE)
         {
             light_sample_count++;
         }
-
         // moving average
         filtered_light = light_sum / light_sample_count;
-
 		light = filtered_light;
-
         if (light <= LIGHT_ADC_MIN)
         {
             ccr = 0;
@@ -266,8 +264,23 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
         {
             ccr = (light - LIGHT_ADC_MIN) * PWM_MAX / (LIGHT_ADC_MAX - LIGHT_ADC_MIN);
         }
-
         __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_3, ccr);
+		
+		
+		
+		 temp_sum -= temp_samples[temp_index];
+		 temp_samples[temp_index] = adc_buf[1];
+		 temp_sum += temp_samples[temp_index];
+		 temp_index++;
+		 if (temp_index >= TEMP_FILTER_SIZE)
+		 {
+			temp_index = 0;
+		 }
+		 if (temp_sample_count < TEMP_FILTER_SIZE)
+		 {
+			 temp_sample_count++;
+		 }
+		 filtered_temp = temp_sum / temp_sample_count;
     }
 }
 /* USER CODE END 4 */
