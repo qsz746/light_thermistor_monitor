@@ -20,6 +20,7 @@
 #include "main.h"
 #include "adc.h"
 #include "dma.h"
+#include "tim.h"
 #include "usart.h"
 #include "gpio.h"
 
@@ -27,6 +28,7 @@
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -59,7 +61,25 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+float Thermistor_VoltageToTemp(float vout)
+{
+    const float VCC = 3.3f;
+    const float R_FIXED = 10000.0f;   //  
+    const float R0 = 10000.0f;        // NTC 25�C    10k
+    const float BETA = 3950.0f;
+    const float T0 = 298.15f;         // 25�C in Kelvin
 
+    float r_ntc;
+    float temp_k;
+
+    r_ntc = R_FIXED * vout / (VCC - vout);
+
+    temp_k = 1.0f /
+             (1.0f / T0 +
+              (1.0f / BETA) * logf(r_ntc / R0));
+
+    return temp_k - 273.15f;
+}
 /* USER CODE END 0 */
 
 /**
@@ -94,8 +114,11 @@ int main(void)
   MX_DMA_Init();
   MX_ADC1_Init();
   MX_USART1_UART_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
   HAL_ADCEx_Calibration_Start(&hadc1);
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
+  
   
   /* USER CODE END 2 */
 
@@ -171,12 +194,17 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
     {
         float light_voltage;
         float temp_voltage;
-
+		float temperature;
+		uint32_t ccr;
+       
         light_voltage = adc_buf[0] / 4095.0f * 3.3f;
         temp_voltage  = adc_buf[1] / 4095.0f * 3.3f;
+		temperature = Thermistor_VoltageToTemp(temp_voltage);
+        ccr = adc_buf[0] * 999 / 4095;
 
-        printf("Light: %.3f V, Thermistor: %.3f V\r\n",
-               light_voltage, temp_voltage);
+        __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_3, ccr);
+        printf("Light: %.3f V, Temp: %.2f C\r\n",
+               light_voltage, temperature);
     }
 }
 /* USER CODE END 4 */
