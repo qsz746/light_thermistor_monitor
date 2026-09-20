@@ -61,6 +61,8 @@ void Error_Handler(void);
 #define Light_AO_GPIO_Port GPIOA
 #define Thermistor_AO_Pin GPIO_PIN_1
 #define Thermistor_AO_GPIO_Port GPIOA
+#define TEMP_LED_Pin GPIO_PIN_5
+#define TEMP_LED_GPIO_Port GPIOA
 
 /* USER CODE BEGIN Private defines */
 

@@ -66,6 +66,9 @@ uint32_t temp_sum = 0;
 uint8_t temp_index = 0;
 uint8_t temp_sample_count = 0;
 volatile uint16_t filtered_temp = 0;
+
+#define TEMP_LED_ON_THRESHOLD   29.0f
+#define TEMP_LED_OFF_THRESHOLD  28.0f
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -138,9 +141,9 @@ int main(void)
 
  
 
-	HAL_ADC_Start_DMA(&hadc1, (uint32_t *)adc_buf, 2);
-	HAL_TIM_Base_Start(&htim3);
-  
+   HAL_ADC_Start_DMA(&hadc1, (uint32_t *)adc_buf, 2);
+   HAL_TIM_Base_Start(&htim3);
+ 
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -150,23 +153,47 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
- 	static uint32_t last_print = 0;
+    static uint32_t last_temp_update = 0;
+    static uint32_t last_print = 0;
+    static float temperature = 0.0f;
 
+    // Temperature control: 10 Hz
+    if (HAL_GetTick() - last_temp_update >= 100)
+    {
+        last_temp_update = HAL_GetTick();
+
+        float temp_voltage;
+
+        temp_voltage = filtered_temp / 4095.0f * 3.3f;
+        temperature = Thermistor_VoltageToTemp(temp_voltage);
+
+        if (temperature >= TEMP_LED_ON_THRESHOLD)
+        {
+            HAL_GPIO_WritePin(TEMP_LED_GPIO_Port,
+                              TEMP_LED_Pin,
+                              GPIO_PIN_SET);
+        }
+        else if (temperature <= TEMP_LED_OFF_THRESHOLD)
+        {
+            HAL_GPIO_WritePin(TEMP_LED_GPIO_Port,
+                              TEMP_LED_Pin,
+                              GPIO_PIN_RESET);
+        }
+    }
+
+    // UART output: 2 Hz
     if (HAL_GetTick() - last_print >= 500)
     {
         last_print = HAL_GetTick();
 
         float light_voltage;
-        float temp_voltage;
-        float temperature;
 
         light_voltage = filtered_light / 4095.0f * 3.3f;
-        temp_voltage  = filtered_temp / 4095.0f * 3.3f;
-        temperature   = Thermistor_VoltageToTemp(temp_voltage);
 
         printf("Light: %.3f V, Temp: %.2f C\r\n",
                light_voltage, temperature);
     }
+	
   }
   /* USER CODE END 3 */
 }
